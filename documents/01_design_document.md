@@ -25,3 +25,5 @@ The recommendations will also be calculated using a stream processor. It will ut
 
 ## Unusual Activity Detection
 The unusual activity detection will also be done using a stream processor. It will again utilize both static data, like forums and friends, as well as streamed data, like posts, comments, replies and likes. An initial baseline profile of the user will be constructed using the first couple of datapoints for each user and the following points will be checked for unusual activity using an online clustering algorithm.
+
+## TODO: Create a small diagram of the architecture
