@@ -1,6 +1,5 @@
 #!/bin/bash
 
-set -e
+brew install zeromq || true
+cargo install diesel_cli --no-default-features --features="postgres" --quiet || true
 
-brew install zeromq
-cargo install diesel_cli --no-default-features --features="postgres"
