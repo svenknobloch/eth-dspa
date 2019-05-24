@@ -1,0 +1,1 @@
+DROP TABLE person_work_at;

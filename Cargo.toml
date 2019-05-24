@@ -1,5 +1,10 @@
 [workspace]
 
 members = [
-    "dspa-lib"
+    "dspa-lib",
+    "dspa-source",
+    "dspa-mq",
+    "dspa-post-stats",
+    "dspa-recommendations",
+    "dspa-anomalies",
 ]

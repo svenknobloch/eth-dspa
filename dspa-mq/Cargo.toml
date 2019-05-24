@@ -1,0 +1,11 @@
+[package]
+name = "dspa-mq"
+version = "0.1.0"
+authors = ["Sven Knobloch <sven98@me.com>"]
+edition = "2018"
+
+[dependencies]
+bincode = "^1"
+zmq = "~0"
+
+dspa-lib = { path = "../dspa-lib/" }

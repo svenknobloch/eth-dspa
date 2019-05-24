@@ -1,0 +1,1 @@
+DROP TABLE tag_class_is_subclass_of;
