@@ -22,7 +22,7 @@ PID_RECOMMENDATIONS=$!
 cargo run --release --bin dspa-anomalies > anomalies.log &
 PID_ANOMALIES=$!
 
-cargo run --release --bin -- --streams ./data/1k-users-sorted/
+cargo run --release --bin -- --streams ./data/1k-users-sorted/ --speedup=3600 --delay=3600
 
 sleep 20
 
