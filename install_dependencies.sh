@@ -3,4 +3,4 @@
 set -e
 
 brew install zeromq
-cargo install diesel_cli
+cargo install diesel_cli --no-default-features --features="postgres"
