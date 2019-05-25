@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use chrono::{Utc, TimeZone};
 use diesel::r2d2::ConnectionManager;
 use diesel::PgConnection;
 use r2d2::Pool;
@@ -55,7 +56,15 @@ fn main() {
                 .concat(&like_events)
                 .window(HR_4, HR_1)
                 .exchange(|_| 0)
-                .recommendations(&pool, &ARGS.users);
+                .recommendations(&pool, &ARGS.users)
+                .inspect_batch(|timestamp, recommendations| {
+                    if !recommendations.is_empty() {
+                        println!("{} - {}", Utc.timestamp(*timestamp as i64, 0).format("%D - %r"), timestamp);
+                        for (user, recommended) in recommendations {
+                            println!("\tUser {} - Recomendations: {:?}", user, recommended);
+                        }
+                    }
+                });
 
         });
     }).unwrap();

@@ -71,13 +71,13 @@ impl TableRecord for PersonIsLocatedInRecord {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, Insertable)]
+#[derive(Clone, Debug, Serialize, Deserialize, Insertable, Queryable)]
 #[table_name = "person_knows"]
 pub struct PersonKnowsRecord {
     #[serde(rename = "Person.id")]
-    person_id: i32,
+    pub person_id: i32,
     #[serde(rename = "Acquaintance.id")]
-    acquaintance_id: i32,
+    pub acquaintance_id: i32,
 }
 
 impl Record for PersonKnowsRecord {

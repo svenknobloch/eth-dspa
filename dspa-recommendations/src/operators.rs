@@ -14,7 +14,7 @@ use timely::dataflow::operators::{Operator};
 use timely::Data;
 use timely::dataflow::channels::pact::{Pipeline, Exchange};
 
-use dspa_lib::records::PersonRecord;
+use dspa_lib::records::{PersonRecord, PersonKnowsRecord};
 use dspa_lib::schema::*;
 
 use crate::RecommendationEvent;
@@ -78,7 +78,7 @@ pub trait Recommendations<G>
     where
         G: Scope<Timestamp=u64>,
 {
-    fn recommendations(&self, pool: &Arc<Pool<ConnectionManager<PgConnection>>>, users: &[i32]) -> Stream<G, String>;
+    fn recommendations(&self, pool: &Arc<Pool<ConnectionManager<PgConnection>>>, users: &[i32]) -> Stream<G, (i32, Vec<i32>)>;
 }
 
 //pub struct RecommendationFeatures {
@@ -90,13 +90,19 @@ impl<G> Recommendations<G> for Stream<G, RecommendationEvent>
     where
         G: Scope<Timestamp=u64>,
 {
-    fn recommendations(&self, pool: &Arc<Pool<ConnectionManager<PgConnection>>>, users: &[i32]) -> Stream<G, String> {
+    fn recommendations(&self, pool: &Arc<Pool<ConnectionManager<PgConnection>>>, users: &[i32]) -> Stream<G, (i32, Vec<i32>)> {
         let pool = pool.clone();
         let connection = pool.get().unwrap();
 
-//        let users = users.iter().map(|id| person::table.filter(person::id.eq(*id)).first::<PersonRecord>(&connection).unwrap()).collect::<Vec<_>>();
         let users: HashSet<i32> = users.iter().cloned().collect(); // HashSet::from_iter(users); // .iter().collect::<HashSet<_>>();
-        let friends: HashMap<i32, HashSet<i32>> = HashMap::new();
+        let mut friends: HashMap<i32, HashSet<i32>> = HashMap::new();
+
+        for user in &users {
+            friends.insert(*user, person_knows::table.filter(person_knows::person_id.eq(user)).load::<PersonKnowsRecord>(&connection).unwrap().iter().map(|record| record.acquaintance_id).collect::<HashSet<_>>());
+
+            // Add user to friends to filter out self recommendations
+            friends.get_mut(user).unwrap().insert(*user);
+        }
 
 
         // Counts how many items two users have in common
@@ -120,7 +126,7 @@ impl<G> Recommendations<G> for Stream<G, RecommendationEvent>
                 input.for_each(|cap, data| {
                     data.swap(&mut vec);
 
-//                    println!("{:?}", vec);
+                    let mut session = output.session(&cap);
 
                     vec.drain(..).for_each(
                         |x| {
@@ -230,18 +236,15 @@ impl<G> Recommendations<G> for Stream<G, RecommendationEvent>
                                 .take(5)
                                 .collect();
 
-                            *recommendation_vector.entry(*u1).or_default() = top_5_users;
+                            if !top_5_users.is_empty() {
+                                *recommendation_vector.entry(*u1).or_default() = top_5_users;
+                            }
 
                         }
                     );
 
-                    println!("{:?}", recommendation_vector);
 
-//                    recommendation_vector
-
-//                    recommendation_vector
-
-                    // output.session(&cap).give(id);
+                    session.give_iterator(recommendation_vector.into_iter());
                 });
             }
         })
