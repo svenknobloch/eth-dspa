@@ -94,28 +94,3 @@ where
         )
     }
 }
-
-pub trait DisplayPostStats<G>
-where
-    G: Scope<Timestamp = u64>,
-{
-    fn display(&self) -> Stream<G, String>;
-}
-
-impl<G> DisplayPostStats<G> for Stream<G, String>
-where
-    G: Scope<Timestamp = u64>,
-{
-    fn display(&self) -> Stream<G, String> {
-        self.inspect_batch(|timestamp, posts| {
-            if !posts.is_empty() {
-                println!();
-                println!("{} - {}", Utc.timestamp(*timestamp as i64, 0).format("%D - %r"), timestamp);
-                for post in posts {
-                    println!("\t{}", post);
-                }
-                println!();
-            }
-        })
-    }
-}

@@ -28,7 +28,7 @@ use dspa_lib::schema::{comment, like_ as like, post};
 use dspa_lib::{Topic, MAX_DELAY, DATABASE_URL};
 
 use dspa_post_stats::{ActivePost, ActivePostEvent};
-use dspa_post_stats::operators::{PostStats, DisplayPostStats};
+use dspa_post_stats::operators::{PostStats};
 
 fn main() {
     let pool = Arc::new(
@@ -77,9 +77,16 @@ fn main() {
 
             comment_events
                 .concat(&like_events)
-                // .exchange(|event| event.id() as u64)
+                .exchange(|event| event.id() as u64)
                 .post_stats(pool.clone())
-                .display();
+                .inspect_batch(|timestamp, posts| {
+                    if !posts.is_empty() {
+                        println!("{} - {}", Utc.timestamp(*timestamp as i64, 0).format("%D - %r"), timestamp);
+                        for post in posts {
+                            println!("\t{}", post);
+                        }
+                    }
+                });
         });
 
     })
