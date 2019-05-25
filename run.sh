@@ -10,23 +10,17 @@ cargo build --release
 cargo run --release --bin dspa-source -- --tables ./data/1k-users-sorted/
 
 # Run with default parameters
-cargo run --bin dspa-mq &
-PID_MQ=$!
-
-cargo run --bin dspa-post-stats > post_stats.log &
-PID_POST_STATS=$!
-
-cargo run --bin dspa-recommendations -- --users 0 1 2 3 4 5 6 7 8 9 > recommendations.log &
-PID_RECOMMENDATIONS=$!
-
-cargo run --release --bin dspa-anomalies -- --threshold=0 > anomalies.log &
-PID_ANOMALIES=$!
-
+cargo run --release --bin dspa-mq &
+cargo run --release --bin dspa-post-stats > post_stats.log &
+cargo run --release --bin dspa-recommendations -- --users 0 1 2 3 4 5 6 7 8 9 > recommendations.log &
+cargo run --release --bin dspa-anomalies -- --threshold=3 --sample_size=256 --smoothing=5 > anomalies.log &
 cargo run --release --bin dspa-source -- --streams ./data/1k-users-sorted/ --speedup=3600 --delay=3600
 
+# Give the processors time to finish processing
 sleep 20
 
-kill $PID_POST_STATS
-kill $PID_RECOMMENDATIONS
-kill $PID_ANOMALIES
-kill $PID_MQ
+# Clean up processes
+pkill dspa-mq
+pkill dspa-post-stats
+pkill dspa-recommendations
+pkill dspa-anomalies
