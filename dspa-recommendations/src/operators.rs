@@ -96,6 +96,8 @@ impl<G> Recommendations<G> for Stream<G, RecommendationEvent>
 
 //        let users = users.iter().map(|id| person::table.filter(person::id.eq(*id)).first::<PersonRecord>(&connection).unwrap()).collect::<Vec<_>>();
         let users: HashSet<i32> = users.iter().cloned().collect(); // HashSet::from_iter(users); // .iter().collect::<HashSet<_>>();
+        let friends: HashMap<i32, HashSet<i32>> = HashMap::new();
+
 
         // Counts how many items two users have in common
         self.unary(Pipeline, "Recommendations", |_, _| {
@@ -170,7 +172,6 @@ impl<G> Recommendations<G> for Stream<G, RecommendationEvent>
                             // Iterate through all the posts than similar_users
                             for similar_user_id in similar_user_vector {
                                 *user_to_user_recommendation.entry((*user_id, *similar_user_id)).or_default() += 1;
-                                println!("{:?}", user_to_user_recommendation.get(&(*user_id, *similar_user_id)));
                             }
                         }
                     }
@@ -184,7 +185,6 @@ impl<G> Recommendations<G> for Stream<G, RecommendationEvent>
                             // Iterate through all the posts than similar_users
                             for similar_user_id in similar_user_vector {
                                 *user_to_user_recommendation.entry((*user_id, *similar_user_id)).or_default() += 1;
-                                println!("{:?}", user_to_user_recommendation.get(&(*user_id, *similar_user_id)));
                             }
                         }
                     }
@@ -198,7 +198,6 @@ impl<G> Recommendations<G> for Stream<G, RecommendationEvent>
                             // Iterate through all the posts than similar_users
                             for similar_user_id in similar_user_vector {
                                 *user_to_user_recommendation.entry((*user_id, *similar_user_id)).or_default() += 1;
-                                println!("{:?}", user_to_user_recommendation.get(&(*user_id, *similar_user_id)));
                             }
                         }
                     }
@@ -221,14 +220,22 @@ impl<G> Recommendations<G> for Stream<G, RecommendationEvent>
                                 .map(|(similar_user_id, count)| (count, similar_user_id))
                                 .collect::<Vec<_>>();
 
+                            // Vec<(count, similar_user_id)>
                             vec_u2similarity_count.sort_by_key(|k| -1 * k.0);
 
-                            let top_5_users: Vec<i32> = vec_u2similarity_count.iter().take(5).map(|x| *x.1).collect();
+                            let top_5_users: Vec<i32> = vec_u2similarity_count
+                                .iter()
+                                .map(|x| *x.1)
+                                .filter(|uid| !friends.get(u1).unwrap().contains(uid) )
+                                .take(5)
+                                .collect();
 
                             *recommendation_vector.entry(*u1).or_default() = top_5_users;
 
                         }
                     );
+
+                    println!("{:?}", recommendation_vector);
 
 //                    recommendation_vector
 
