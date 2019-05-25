@@ -11,7 +11,7 @@ use dspa_lib::{DATABASE_URL};
 use dspa_lib::operators::{streams, Ordered};
 
 use dspa_anomalies::{AnomalyEvent, ARGS};
-use dspa_anomalies::operators::{};
+use dspa_anomalies::operators::{Anomalies};
 
 fn main() {
     lazy_static::initialize(&ARGS);
@@ -49,7 +49,11 @@ fn main() {
 
             post_events
                 .concat(&comment_events)
-                .concat(&like_events);
+                .concat(&like_events)
+                .anomalies()
+                .inspect(|(user, cause, stddevs)| {
+                    println!("Anomaly: User {} for reason {} with stddev {}", user, cause, stddevs);
+                });
 
         });
     }).unwrap();

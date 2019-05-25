@@ -7,7 +7,7 @@ use structopt::StructOpt;
 use dspa_lib::records::{PostRecord, CommentRecord, LikeRecord};
 
 pub mod operators;
-
+pub mod statistics;
 
 lazy_static! {
     pub static ref ARGS: Args = Args::from_args();
@@ -16,8 +16,12 @@ lazy_static! {
 #[derive(Debug, StructOpt)]
 #[structopt(name = "dspa-anomalies")]
 pub struct Args {
-    #[structopt(long = "threshold")]
+    #[structopt(long = "threshold", default_value = "3")]
     pub threshold: f32,
+    #[structopt(short = "s", long = "sample_size", default_value = "256")]
+    pub samples: usize,
+    #[structopt(long = "smoothing", default_value = "3")]
+    pub alpha: f32,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
