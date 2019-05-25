@@ -1,4 +1,5 @@
 use std::fmt;
+use std::collections::HashMap;
 
 use chrono::{DateTime, Duration, Utc};
 use diesel::{Identifiable, Insertable, PgConnection};
@@ -88,6 +89,17 @@ pub struct PostRecord {
     pub tags: Vec<i32>,
     pub forum_id: i32,
     pub place_id: i32,
+}
+
+// TODO: Should it be hashmap of vectors? And then take union of underlying datastructures..
+impl PostRecord {
+    pub fn hashmap(&self) -> HashMap<&'static str, i32> {
+        let mut out = HashMap::new();
+        out.insert("person_id", self.person_id);
+        out.insert("forum_id", self.forum_id);
+        out.insert("place_id", self.place_id);
+        out
+    }
 }
 
 impl Record for PostRecord {

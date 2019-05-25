@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use chrono::{DateTime, Duration, Utc};
 use diesel::prelude::*;
 use diesel::{Identifiable, Insertable, PgConnection};
@@ -28,6 +30,13 @@ impl LikeRecord {
             .filter(post::id.eq(&self.post_id))
             .first::<PostRecord>(connection)
             .ok()
+    }
+
+    pub fn hashmap(&self) -> HashMap<&'static str, i32> {
+        let mut out = HashMap::new();
+        out.insert("person_id", self.person_id);
+        out.insert("post_id", self.post_id);
+        out
     }
 }
 

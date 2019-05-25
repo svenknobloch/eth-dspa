@@ -1,4 +1,5 @@
 use std::convert::identity;
+use std::collections::HashMap;
 
 use chrono::{DateTime, Duration, Utc};
 use diesel::prelude::*;
@@ -106,6 +107,14 @@ impl CommentRecord {
             // Comments must have a parent
             unreachable!()
         }
+    }
+
+    pub fn hashmap(&self, connection: &PgConnection) -> HashMap<&'static str, i32> {
+        let mut out: HashMap<&str, i32> = HashMap::new();
+        out.insert("person_id", self.person_id);
+        out.insert("post_id", self.root(connection).expect("autismo").id);
+        out.insert("place_id", self.place_id);
+        out
     }
 }
 

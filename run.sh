@@ -10,13 +10,13 @@ cargo build --release
 cargo run --release --bin dspa-source -- --tables ./data/1k-users-sorted/
 
 # Run with default parameters
-cargo run --release --bin dspa-mq &
+cargo run --bin dspa-mq &
 PID_MQ=$!
 
-cargo run --release --bin dspa-post-stats > post_stats.log & 
+cargo run --bin dspa-post-stats > post_stats.log &
 PID_POST_STATS=$!
 
-cargo run --release --bin dspa-recommendations -- --users 0 1 2 3 4 5 6 7 8 9 > recommendations.log &
+cargo run --bin dspa-recommendations -- --users 0 1 2 3 4 5 6 7 8 9 > recommendations.log &
 PID_RECOMMENDATIONS=$!
 
 cargo run --release --bin dspa-anomalies -- --threshold=0 > anomalies.log &
