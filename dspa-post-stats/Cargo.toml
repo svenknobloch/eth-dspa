@@ -1,0 +1,26 @@
+[package]
+name = "dspa-post-stats"
+version = "0.1.0"
+authors = ["Sven Knobloch <sven98@me.com>"]
+edition = "2018"
+
+[dependencies]
+bincode = "^1"
+chrono = "~0"
+diesel = { version = "^1", features = [ "chrono", "r2d2" ] }
+num_cpus = "^1"
+r2d2 = "~0"
+serde = "^1"
+serde_derive = "^1"
+timely = { version = "~0", features = [ "bincode" ] }
+zmq = "~0"
+
+dspa-lib = { path = "../dspa-lib/" }
+
+[lib]
+name = "dspa_post_stats"
+path = "src/lib.rs"
+
+[[bin]]
+name = "dspa-post-stats"
+path = "src/main.rs"

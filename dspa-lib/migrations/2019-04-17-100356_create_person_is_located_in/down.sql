@@ -1,0 +1,1 @@
+DROP TABLE person_is_located_in;

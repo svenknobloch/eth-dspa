@@ -1,0 +1,1 @@
+DROP TABLE person_study_at;
