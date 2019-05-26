@@ -1,5 +1,51 @@
 # DSPA Semester Project
 
+## Quick Start
+
+Requirements: `brew`, `cargo`, `docker`
+
+For Mac OSX:
+```
+git clone git@gitlab.ethz.ch:knsven/dspa-semester-project.git
+cd ./dspa-semester-project/
+./run.sh
+```
+
+For other Unix Systems (not tested):
+```
+git clone git@gitlab.ethz.ch:knsven/dspa-semester-project.git
+cd ./dspa-semester-project/
+-> Install zeromq
+cargo install diesel_cli --no-default-features --features="postgres"
+./format_csv.sh
+./postgres.sh
+
+# Pulled from run.sh
+
+# Run with default parameters
+cargo run --release --bin dspa-mq &
+cargo run --release --bin dspa-post-stats > post_stats.log &
+cargo run --release --bin dspa-recommendations -- --users 0 1 2 3 4 5 6 7 8 9 > recommendations.log &
+cargo run --release --bin dspa-anomalies -- --threshold=3 --sample_size=256 --smoothing=5 > anomalies.log &
+
+cargo run --release --bin dspa-source -- --streams ./data/1k-users-sorted/ --speedup=3600 --delay=3600
+
+# Give the processors time to finish processing
+sleep 20
+
+# Clean up processes
+pkill dspa-mq
+pkill dspa-post-stats
+pkill dspa-recommendations
+pkill dspa-anomalies
+```
+
+Does not run on Windows!
+
+Output will be found in `post_stats.log`, `recommendations.log` and `anomalies.log`
+
+For more details, see below
+
 ## Contents
 
 ### dspa-lib
@@ -95,7 +141,7 @@ Options
 * `--threshold` - set the standard deviation threshold (default: 3)
 
 ### Scripts
-Scripts used to run the project. The development is done on OSX and the scripts are therefore layed out for OSX. If running on a different unix system, the scripts will not run properly. `brew`, `Cargo`, `rust` and `Docker` are assumed to be present on the system.
+Scripts used to run the project. The development is done on OSX and the scripts are therefore layed out for OSX. If running on a different unix system, the scripts will not run properly. `brew`, `cargo`, `rust` and `docker` are assumed to be present on the system.
 
 #### `install_dependencies.sh`
 Installs dependencies, namely `zeromq` and `diesel_cli`.
