@@ -18,8 +18,7 @@ pub const DATABASE_URL: &str = "postgres://root@localhost/dspa";
 pub const SOCKET_TIMEOUT: i32 = 100;
 
 // Max delay of one day
-pub const MAX_DELAY: u64 = 0;
-// pub const MAX_DELAY: u64 = 60 * 60 * 24;
+pub const MAX_DELAY: u64 = 60 * 60 * 24;
 
 #[derive(Copy, Clone, Debug)]
 pub enum Topic {
