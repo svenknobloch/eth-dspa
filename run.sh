@@ -1,6 +1,8 @@
 #!/bin/bash
 
 set -e
+
+# --- Setup ---
 bash ./install_dependencies.sh
 bash ./format_csv.sh
 bash ./postgres.sh
@@ -8,6 +10,8 @@ bash ./postgres.sh
 cargo build --release
 
 cargo run --release --bin dspa-source -- --tables ./data/1k-users-sorted/
+
+# --- End Setup ---
 
 # Run with default parameters
 cargo run --release --bin dspa-mq &
