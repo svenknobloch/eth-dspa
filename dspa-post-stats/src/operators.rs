@@ -1,13 +1,11 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-use chrono::{TimeZone, Utc};
 use diesel::r2d2::ConnectionManager;
 use diesel::PgConnection;
 use r2d2::Pool;
 use timely::dataflow::channels::pact::Exchange;
-use timely::dataflow::channels::pact::Pipeline;
-use timely::dataflow::operators::{Inspect, Operator};
+use timely::dataflow::operators::Operator;
 use timely::dataflow::{Scope, Stream};
 
 use crate::{ActivePost, ActivePostEvent};
@@ -40,6 +38,8 @@ where
     fn post_stats(&self, pool: Arc<Pool<ConnectionManager<PgConnection>>>) -> Stream<G, String> {
         let pool = pool.clone();
 
+        let mut seen: HashSet<i32> = HashSet::new();
+
         // Post Id => Post Data
         let mut active: HashMap<i32, ActivePost> = HashMap::new();
 
@@ -58,14 +58,20 @@ where
 
                     vec.drain(..).for_each(|event| {
                         let id = event.id();
-                        active
-                            .entry(id)
-                            .or_insert_with(|| ActivePost::new(id))
-                            .update(event);
-                        expiry
-                            .entry(id)
-                            .and_modify(|time| *time = *cap.time() + HR_12)
-                            .or_insert_with(|| *cap.time() + HR_12);
+
+                        // Only evaluate if not seen or currently active
+                        if !seen.contains(&id) || active.contains_key(&id) {
+                            active
+                                .entry(id)
+                                .or_insert_with(|| ActivePost::new(id))
+                                .update(event);
+                            expiry
+                                .entry(id)
+                                .and_modify(|time| *time = *cap.time() + HR_12)
+                                .or_insert_with(|| *cap.time() + HR_12);
+
+                            seen.insert(id);
+                        }
                     });
 
                     notificator.notify_at(cap.delayed(&round_to_next(*cap.time())));
