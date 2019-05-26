@@ -1,5 +1,9 @@
 # DSPA Semester Project
 
+Data Stream Processing and Analytics Course, offered by Vasiliki Kalavri, Zaheer Chothia and Michal Wawrzoniak.
+
+Project Repository by Sven Knobloch and David Yenicelik.
+
 ## Quick Start
 
 Requirements: `brew`, `cargo`, `docker`
