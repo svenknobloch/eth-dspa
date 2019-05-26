@@ -1,13 +1,12 @@
 #[macro_use]
 extern crate lazy_static;
 
-use serde_derive::{Serialize, Deserialize};
+use serde_derive::{Deserialize, Serialize};
 use structopt::StructOpt;
 
-use dspa_lib::records::{PostRecord, CommentRecord, LikeRecord};
+use dspa_lib::records::{CommentRecord, LikeRecord, PostRecord};
 
 pub mod operators;
-
 
 lazy_static! {
     pub static ref ARGS: Args = Args::from_args();

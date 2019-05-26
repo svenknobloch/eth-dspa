@@ -3,15 +3,15 @@ use std::sync::Arc;
 use diesel::r2d2::ConnectionManager;
 use diesel::PgConnection;
 use r2d2::Pool;
-use timely::dataflow::operators::{Exchange, Map, Concat, Inspect};
+use timely::dataflow::operators::{Concat, Exchange, Inspect, Map};
 
 use zmq::Context;
 
-use dspa_lib::{DATABASE_URL};
 use dspa_lib::operators::{streams, Ordered};
+use dspa_lib::DATABASE_URL;
 
+use dspa_anomalies::operators::Anomalies;
 use dspa_anomalies::{AnomalyEvent, ARGS};
-use dspa_anomalies::operators::{Anomalies};
 
 fn main() {
     lazy_static::initialize(&ARGS);
@@ -19,20 +19,17 @@ fn main() {
     let pool = Arc::new(
         Pool::builder()
             .max_size(16)
-            .build(ConnectionManager::<PgConnection>::new(
-                DATABASE_URL,
-            ))
+            .build(ConnectionManager::<PgConnection>::new(DATABASE_URL))
             .unwrap(),
     );
-    
+
     let ctx = Context::new();
     timely::execute(timely::Configuration::Thread, move |worker| {
-    // timely::execute(timely::Configuration::Process(num_cpus::get()), move |worker| {
+        // timely::execute(timely::Configuration::Process(num_cpus::get()), move |worker| {
         let idx = worker.index();
         let peers = worker.peers();
 
         worker.dataflow(|scope| {
-
             let (posts, comments, likes) = streams(scope, idx, &ctx);
 
             let comment_events = comments
@@ -52,9 +49,12 @@ fn main() {
                 .concat(&like_events)
                 .anomalies()
                 .inspect(|(user, cause, stddevs)| {
-                    println!("Anomaly: User {} for reason {} with stddev {}", user, cause, stddevs);
+                    println!(
+                        "Anomaly: User {} for reason {} with stddev {}",
+                        user, cause, stddevs
+                    );
                 });
-
         });
-    }).unwrap();
+    })
+    .unwrap();
 }

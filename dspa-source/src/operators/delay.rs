@@ -1,9 +1,8 @@
-
-use rand::{Rng, thread_rng};
+use rand::{thread_rng, Rng};
 use timely::dataflow::operators::Delay;
 use timely::dataflow::{Scope, Stream};
 
-use dspa_lib::records::{StreamRecord};
+use dspa_lib::records::StreamRecord;
 
 pub trait BoundedDelay<G, D>
 where
@@ -30,4 +29,3 @@ where
         })
     }
 }
-

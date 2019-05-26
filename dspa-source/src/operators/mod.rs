@@ -1,9 +1,9 @@
-mod source;
-mod insert;
 mod delay;
+mod insert;
 mod sink;
+mod source;
 
-pub use source::*;
-pub use insert::*;
 pub use delay::*;
+pub use insert::*;
 pub use sink::*;
+pub use source::*;

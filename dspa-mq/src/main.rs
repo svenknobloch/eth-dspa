@@ -1,10 +1,10 @@
 use std::fs::create_dir_all;
 
-use zmq::{Context, SocketType, SNDMORE};
 use bincode::deserialize;
+use zmq::{Context, SocketType, SNDMORE};
 
+use dspa_lib::records::{CommentRecord, LikeRecord, PostRecord, StreamRecord};
 use dspa_lib::{Topic, DATA_SOCKET, SOURCE_SOCKET};
-use dspa_lib::records::{CommentRecord, PostRecord, LikeRecord, StreamRecord};
 
 fn main() {
     // Create context
@@ -32,16 +32,31 @@ fn main() {
         match topic.as_str() {
             "post" => {
                 let record = deserialize::<PostRecord>(&data).unwrap();
-                println!("{} record {{ timestamp: {}, id: {:?} }}", topic, record.timestamp(), record.id());
-            },
+                println!(
+                    "{} record {{ timestamp: {}, id: {:?} }}",
+                    topic,
+                    record.timestamp(),
+                    record.id()
+                );
+            }
             "comment" => {
                 let record = deserialize::<CommentRecord>(&data).unwrap();
-                println!("{} record {{ timestamp: {}, id: {:?} }}", topic, record.timestamp(), record.id());
-            },
+                println!(
+                    "{} record {{ timestamp: {}, id: {:?} }}",
+                    topic,
+                    record.timestamp(),
+                    record.id()
+                );
+            }
             "like" => {
                 let record = deserialize::<LikeRecord>(&data).unwrap();
-                println!("{} record {{ timestamp: {}, id: {:?} }}", topic, record.timestamp(), record.id());
-            },
+                println!(
+                    "{} record {{ timestamp: {}, id: {:?} }}",
+                    topic,
+                    record.timestamp(),
+                    record.id()
+                );
+            }
             _ => {}
         }
         send_socket.send(data, 0).unwrap();

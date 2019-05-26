@@ -1,20 +1,20 @@
 use std::collections::BTreeMap;
-use std::sync::Arc;
-use std::mem::swap;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::iter::FromIterator;
+use std::mem::swap;
+use std::sync::Arc;
 
 use diesel::prelude::*;
 use diesel::r2d2::ConnectionManager;
 use diesel::PgConnection;
 use r2d2::Pool;
+use timely::dataflow::channels::pact::{Exchange, Pipeline};
+use timely::dataflow::operators::Operator;
 use timely::dataflow::{Scope, Stream};
-use timely::dataflow::operators::{Operator};
 use timely::Data;
-use timely::dataflow::channels::pact::{Pipeline, Exchange};
 
-use dspa_lib::records::{PersonRecord, PersonKnowsRecord};
+use dspa_lib::records::{PersonKnowsRecord, PersonRecord};
 use dspa_lib::schema::*;
 
 use crate::RecommendationEvent;
@@ -31,54 +31,64 @@ fn round_to_next(current: u64, multiple: u64) -> u64 {
 }
 
 pub trait Window<G, D>
-    where
-        G: Scope<Timestamp=u64>,
-        D: Data,
+where
+    G: Scope<Timestamp = u64>,
+    D: Data,
 {
     fn window(&self, size: u64, frequency: u64) -> Stream<G, D>;
 }
 
-
 impl<G> Window<G, RecommendationEvent> for Stream<G, RecommendationEvent>
-    where
-        G: Scope<Timestamp=u64>,
+where
+    G: Scope<Timestamp = u64>,
 {
     fn window(&self, size: u64, frequency: u64) -> Stream<G, RecommendationEvent> {
         let mut active: BTreeMap<u64, Vec<RecommendationEvent>> = BTreeMap::new();
 
         let mut vec = Vec::new();
-        self.unary_notify(Pipeline, "Window", None, move |input, output, notificator| {
-            input.for_each(|cap, data| {
-                data.swap(&mut vec);
+        self.unary_notify(
+            Pipeline,
+            "Window",
+            None,
+            move |input, output, notificator| {
+                input.for_each(|cap, data| {
+                    data.swap(&mut vec);
 
-                active.entry(*cap.time()).or_default().extend(vec.drain(..));
-                notificator.notify_at(cap.delayed(&(round_to_next(*cap.time(), frequency))));
-            });
+                    active.entry(*cap.time()).or_default().extend(vec.drain(..));
+                    notificator.notify_at(cap.delayed(&(round_to_next(*cap.time(), frequency))));
+                });
 
-            notificator.for_each(|cap, _, notificator| {
-                // Remove all events out of given window
-                let mut remaining = active.split_off(&(*cap.time() - size - 1));
+                notificator.for_each(|cap, _, notificator| {
+                    // Remove all events out of given window
+                    let mut remaining = active.split_off(&(*cap.time() - size - 1));
 
-                // Make remaining the new active
-                swap(&mut active, &mut remaining);
+                    // Make remaining the new active
+                    swap(&mut active, &mut remaining);
 
-                output.session(&cap).give_iterator(active.values().flatten().cloned());
+                    output
+                        .session(&cap)
+                        .give_iterator(active.values().flatten().cloned());
 
-                // If data is available, queue for next iteration
-                if !remaining.is_empty() {
-                    notificator.notify_at(cap.delayed(&(round_to_next(*cap.time() + 1, frequency))))
-                }
-            });
-        })
+                    // If data is available, queue for next iteration
+                    if !remaining.is_empty() {
+                        notificator
+                            .notify_at(cap.delayed(&(round_to_next(*cap.time() + 1, frequency))))
+                    }
+                });
+            },
+        )
     }
 }
 
-
 pub trait Recommendations<G>
-    where
-        G: Scope<Timestamp=u64>,
+where
+    G: Scope<Timestamp = u64>,
 {
-    fn recommendations(&self, pool: &Arc<Pool<ConnectionManager<PgConnection>>>, users: &[i32]) -> Stream<G, (i32, Vec<i32>)>;
+    fn recommendations(
+        &self,
+        pool: &Arc<Pool<ConnectionManager<PgConnection>>>,
+        users: &[i32],
+    ) -> Stream<G, (i32, Vec<i32>)>;
 }
 
 //pub struct RecommendationFeatures {
@@ -87,10 +97,14 @@ pub trait Recommendations<G>
 //}
 
 impl<G> Recommendations<G> for Stream<G, RecommendationEvent>
-    where
-        G: Scope<Timestamp=u64>,
+where
+    G: Scope<Timestamp = u64>,
 {
-    fn recommendations(&self, pool: &Arc<Pool<ConnectionManager<PgConnection>>>, users: &[i32]) -> Stream<G, (i32, Vec<i32>)> {
+    fn recommendations(
+        &self,
+        pool: &Arc<Pool<ConnectionManager<PgConnection>>>,
+        users: &[i32],
+    ) -> Stream<G, (i32, Vec<i32>)> {
         let pool = pool.clone();
         let connection = pool.get().unwrap();
 
@@ -98,18 +112,25 @@ impl<G> Recommendations<G> for Stream<G, RecommendationEvent>
         let mut friends: HashMap<i32, HashSet<i32>> = HashMap::new();
 
         for user in &users {
-            friends.insert(*user, person_knows::table.filter(person_knows::person_id.eq(user)).load::<PersonKnowsRecord>(&connection).unwrap().iter().map(|record| record.acquaintance_id).collect::<HashSet<_>>());
+            friends.insert(
+                *user,
+                person_knows::table
+                    .filter(person_knows::person_id.eq(user))
+                    .load::<PersonKnowsRecord>(&connection)
+                    .unwrap()
+                    .iter()
+                    .map(|record| record.acquaintance_id)
+                    .collect::<HashSet<_>>(),
+            );
 
             // Add user to friends to filter out self recommendations
             friends.get_mut(user).unwrap().insert(*user);
         }
 
-
         // Counts how many items two users have in common
         self.unary(Pipeline, "Recommendations", |_, _| {
             let mut vec = Vec::new();
             move |input, output| {
-
                 let mut user_to_user_recommendation: HashMap<(i32, i32), i32> = HashMap::new();
 
                 let mut map_post_id: HashMap<i32, Vec<i32>> = HashMap::new();
@@ -128,43 +149,57 @@ impl<G> Recommendations<G> for Stream<G, RecommendationEvent>
 
                     let mut session = output.session(&cap);
 
-                    vec.drain(..).for_each(
-                        |x| {
-                            let map = match x {
-                                RecommendationEvent::Post(post) => post.hashmap(),
-                                RecommendationEvent::Like(like) => like.hashmap(),
-                                RecommendationEvent::Comment(comment) => comment.hashmap(&connection),
-                            };
+                    vec.drain(..).for_each(|x| {
+                        let map = match x {
+                            RecommendationEvent::Post(post) => post.hashmap(),
+                            RecommendationEvent::Like(like) => like.hashmap(),
+                            RecommendationEvent::Comment(comment) => comment.hashmap(&connection),
+                        };
 
-                            map.keys().for_each(
-                                |x| {
-                                    let user_id = *map.get("person_id").unwrap();
-                                    // Append the user into the item vector
-                                    match *x {
-                                        "post_id" => {
-                                            map_post_id.entry(*map.get(x).unwrap()).or_default().push(user_id);
-                                            if users.contains(&user_id) {
-                                                user_related_post_ids.entry(user_id).or_default().push(*map.get(x).unwrap());
-                                            }
-                                        },
-                                        "forum_id" => {
-                                            map_forum_id.entry(*map.get(x).unwrap()).or_default().push(user_id);
-                                            if users.contains(&user_id) {
-                                                user_related_forum_ids.entry(user_id).or_default().push(*map.get(x).unwrap());
-                                            }
-                                        },
-                                        "place_id" => {
-                                            map_place_id.entry(*map.get(x).unwrap()).or_default().push(user_id);
-                                            if users.contains(&user_id) {
-                                                user_related_place_ids.entry(user_id).or_default().push(*map.get(x).unwrap());
-                                            }
-                                        },
-                                        _ => ()
-                                    };
+                        map.keys().for_each(|x| {
+                            let user_id = *map.get("person_id").unwrap();
+                            // Append the user into the item vector
+                            match *x {
+                                "post_id" => {
+                                    map_post_id
+                                        .entry(*map.get(x).unwrap())
+                                        .or_default()
+                                        .push(user_id);
+                                    if users.contains(&user_id) {
+                                        user_related_post_ids
+                                            .entry(user_id)
+                                            .or_default()
+                                            .push(*map.get(x).unwrap());
+                                    }
                                 }
-                            );
-                        }
-                    );
+                                "forum_id" => {
+                                    map_forum_id
+                                        .entry(*map.get(x).unwrap())
+                                        .or_default()
+                                        .push(user_id);
+                                    if users.contains(&user_id) {
+                                        user_related_forum_ids
+                                            .entry(user_id)
+                                            .or_default()
+                                            .push(*map.get(x).unwrap());
+                                    }
+                                }
+                                "place_id" => {
+                                    map_place_id
+                                        .entry(*map.get(x).unwrap())
+                                        .or_default()
+                                        .push(user_id);
+                                    if users.contains(&user_id) {
+                                        user_related_place_ids
+                                            .entry(user_id)
+                                            .or_default()
+                                            .push(*map.get(x).unwrap());
+                                    }
+                                }
+                                _ => (),
+                            };
+                        });
+                    });
 
                     // For each use in the above item
 
@@ -177,7 +212,9 @@ impl<G> Recommendations<G> for Stream<G, RecommendationEvent>
                             let similar_user_vector = map_post_id.get(post_id).unwrap();
                             // Iterate through all the posts than similar_users
                             for similar_user_id in similar_user_vector {
-                                *user_to_user_recommendation.entry((*user_id, *similar_user_id)).or_default() += 1;
+                                *user_to_user_recommendation
+                                    .entry((*user_id, *similar_user_id))
+                                    .or_default() += 1;
                             }
                         }
                     }
@@ -190,7 +227,9 @@ impl<G> Recommendations<G> for Stream<G, RecommendationEvent>
                             let similar_user_vector = map_forum_id.get(forum_id).unwrap();
                             // Iterate through all the posts than similar_users
                             for similar_user_id in similar_user_vector {
-                                *user_to_user_recommendation.entry((*user_id, *similar_user_id)).or_default() += 1;
+                                *user_to_user_recommendation
+                                    .entry((*user_id, *similar_user_id))
+                                    .or_default() += 1;
                             }
                         }
                     }
@@ -203,46 +242,47 @@ impl<G> Recommendations<G> for Stream<G, RecommendationEvent>
                             let similar_user_vector = map_place_id.get(place_id).unwrap();
                             // Iterate through all the posts than similar_users
                             for similar_user_id in similar_user_vector {
-                                *user_to_user_recommendation.entry((*user_id, *similar_user_id)).or_default() += 1;
+                                *user_to_user_recommendation
+                                    .entry((*user_id, *similar_user_id))
+                                    .or_default() += 1;
                             }
                         }
                     }
 
                     // Iterate over all user-pairs
                     let mut transformed_map: HashMap<i32, HashMap<i32, i32>> = HashMap::new();
-                    user_to_user_recommendation.iter().for_each(
-                        |((u1, u2), count)| {
-                            *transformed_map.entry(*u1).or_default()
-                                .entry(*u2).or_default() = *count;
-                        }
-                    );
+                    user_to_user_recommendation
+                        .iter()
+                        .for_each(|((u1, u2), count)| {
+                            *transformed_map
+                                .entry(*u1)
+                                .or_default()
+                                .entry(*u2)
+                                .or_default() = *count;
+                        });
 
                     let mut recommendation_vector: HashMap<i32, Vec<i32>> = HashMap::new();
 
-                    transformed_map.iter().for_each(
-                        |(u1, user_hashmap)| {
-                            let mut vec_u2similarity_count = user_hashmap
-                                .iter()
-                                .map(|(similar_user_id, count)| (count, similar_user_id))
-                                .collect::<Vec<_>>();
+                    transformed_map.iter().for_each(|(u1, user_hashmap)| {
+                        let mut vec_u2similarity_count = user_hashmap
+                            .iter()
+                            .map(|(similar_user_id, count)| (count, similar_user_id))
+                            .collect::<Vec<_>>();
 
-                            // Vec<(count, similar_user_id)>
-                            vec_u2similarity_count.sort_by_key(|k| -1 * k.0);
+                        // Vec<(count, similar_user_id)>
+                        vec_u2similarity_count.sort_by_key(|k| -1 * k.0);
 
-                            let top_5_users: Vec<i32> = vec_u2similarity_count
-                                .iter()
-                                .map(|x| *x.1)
-                                .filter(|uid| !friends.get(u1).unwrap().contains(uid) )
-                                .take(5)
-                                .collect();
+                        let top_5_users: Vec<i32> = vec_u2similarity_count
+                            .iter()
+                            .map(|x| *x.1)
+                            .filter(|uid| !friends.get(u1).unwrap().contains(uid))
+                            .take(5)
+                            .collect();
 
-                            if !top_5_users.is_empty() {
-                                *recommendation_vector.entry(*u1).or_default() = top_5_users;
-                            }
-
+                        if !top_5_users.is_empty() {
+                            *recommendation_vector.entry(*u1).or_default() = top_5_users;
                         }
-                    );
-
+                    });
 
                     session.give_iterator(recommendation_vector.into_iter());
                 });

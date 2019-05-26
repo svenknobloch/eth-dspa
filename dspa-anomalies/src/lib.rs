@@ -1,10 +1,10 @@
 #[macro_use]
 extern crate lazy_static;
 
-use serde_derive::{Serialize, Deserialize};
+use serde_derive::{Deserialize, Serialize};
 use structopt::StructOpt;
 
-use dspa_lib::records::{PostRecord, CommentRecord, LikeRecord};
+use dspa_lib::records::{CommentRecord, LikeRecord, PostRecord};
 
 pub mod operators;
 pub mod statistics;
@@ -31,6 +31,4 @@ pub enum AnomalyEvent {
     Like(LikeRecord),
 }
 
-impl AnomalyEvent {
-    
-}
+impl AnomalyEvent {}

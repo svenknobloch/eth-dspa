@@ -44,7 +44,6 @@ where
         pool: Arc<Pool<ConnectionManager<PgConnection>>>,
         dependency: &Stream<G, PostRecord>,
     ) -> Stream<G, CommentRecord> {
-
         // ! Broadcast before map to prevent timely panic
         let posts = dependency.broadcast().map(CommentOrderEvent::Post);
         let comments = self.broadcast().map(CommentOrderEvent::Comment);
@@ -157,7 +156,6 @@ where
         pool: Arc<Pool<ConnectionManager<PgConnection>>>,
         dependency: &Stream<G, PostRecord>,
     ) -> Stream<G, LikeRecord> {
-
         // ! Broadcast before map to prevent timely panic
         let posts = dependency.broadcast().map(LikeOrderEvent::Post);
         let likes = self.map(LikeOrderEvent::Like);

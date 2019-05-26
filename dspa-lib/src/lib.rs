@@ -2,9 +2,9 @@
 
 #[macro_use]
 extern crate diesel;
-use serde_derive::{Serialize, Deserialize};
+use serde_derive::{Deserialize, Serialize};
 
-use records::{StreamRecord, PostRecord, CommentRecord, LikeRecord};
+use records::{CommentRecord, LikeRecord, PostRecord, StreamRecord};
 
 pub mod operators;
 pub mod records;

@@ -1,5 +1,5 @@
-use std::convert::identity;
 use std::collections::HashMap;
+use std::convert::identity;
 
 use chrono::{DateTime, Duration, Utc};
 use diesel::prelude::*;

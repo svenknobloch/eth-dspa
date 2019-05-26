@@ -14,6 +14,7 @@ cargo run --release --bin dspa-mq &
 cargo run --release --bin dspa-post-stats > post_stats.log &
 cargo run --release --bin dspa-recommendations -- --users 0 1 2 3 4 5 6 7 8 9 > recommendations.log &
 cargo run --release --bin dspa-anomalies -- --threshold=3 --sample_size=256 --smoothing=5 > anomalies.log &
+
 cargo run --release --bin dspa-source -- --streams ./data/1k-users-sorted/ --speedup=3600 --delay=3600
 
 # Give the processors time to finish processing

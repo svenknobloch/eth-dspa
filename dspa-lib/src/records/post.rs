@@ -1,5 +1,5 @@
-use std::fmt;
 use std::collections::HashMap;
+use std::fmt;
 
 use chrono::{DateTime, Duration, Utc};
 use diesel::{Identifiable, Insertable, PgConnection};

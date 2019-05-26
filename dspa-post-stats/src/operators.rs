@@ -1,16 +1,13 @@
-
-use std::collections::{HashMap};
+use std::collections::HashMap;
 use std::sync::Arc;
 
-use chrono::{Utc, TimeZone};
+use chrono::{TimeZone, Utc};
 use diesel::r2d2::ConnectionManager;
 use diesel::PgConnection;
 use r2d2::Pool;
-use timely::dataflow::channels::pact::Pipeline;
 use timely::dataflow::channels::pact::Exchange;
-use timely::dataflow::operators::{
-    Inspect, Operator,
-};
+use timely::dataflow::channels::pact::Pipeline;
+use timely::dataflow::operators::{Inspect, Operator};
 use timely::dataflow::{Scope, Stream};
 
 use crate::{ActivePost, ActivePostEvent};
@@ -29,7 +26,6 @@ fn round_to_next(current: u64) -> u64 {
     }
 }
 
-
 pub trait PostStats<G>
 where
     G: Scope<Timestamp = u64>,
@@ -41,10 +37,7 @@ impl<G> PostStats<G> for Stream<G, ActivePostEvent>
 where
     G: Scope<Timestamp = u64>,
 {
-    fn post_stats(
-        &self,
-        pool: Arc<Pool<ConnectionManager<PgConnection>>>,
-    ) -> Stream<G, String> {
+    fn post_stats(&self, pool: Arc<Pool<ConnectionManager<PgConnection>>>) -> Stream<G, String> {
         let pool = pool.clone();
 
         // Post Id => Post Data
@@ -65,8 +58,14 @@ where
 
                     vec.drain(..).for_each(|event| {
                         let id = event.id();
-                        active.entry(id).or_insert_with(|| ActivePost::new(id)).update(event);
-                        expiry.entry(id).and_modify(|time| *time = *cap.time() + HR_12).or_insert_with(|| *cap.time() + HR_12);
+                        active
+                            .entry(id)
+                            .or_insert_with(|| ActivePost::new(id))
+                            .update(event);
+                        expiry
+                            .entry(id)
+                            .and_modify(|time| *time = *cap.time() + HR_12)
+                            .or_insert_with(|| *cap.time() + HR_12);
                     });
 
                     notificator.notify_at(cap.delayed(&round_to_next(*cap.time())));
@@ -82,9 +81,11 @@ where
                             true
                         }
                     });
-        
+
                     // Output formatted strings
-                    output.session(&cap).give_iterator(active.values().map(|post| format!("{}", post)));
+                    output
+                        .session(&cap)
+                        .give_iterator(active.values().map(|post| format!("{}", post)));
 
                     if !active.is_empty() {
                         notificator.notify_at(cap.delayed(&round_to_next(cap.time() + 1)));

@@ -1,18 +1,18 @@
 use std::sync::Arc;
 
-use chrono::{Utc, TimeZone};
+use chrono::{TimeZone, Utc};
 use diesel::r2d2::ConnectionManager;
 use diesel::PgConnection;
 use r2d2::Pool;
-use timely::dataflow::operators::{Exchange, Map, Concat, Inspect};
+use timely::dataflow::operators::{Concat, Exchange, Inspect, Map};
 
 use zmq::Context;
 
-use dspa_lib::{DATABASE_URL};
 use dspa_lib::operators::{streams, Ordered};
+use dspa_lib::DATABASE_URL;
 
+use dspa_recommendations::operators::{Recommendations, Window};
 use dspa_recommendations::{RecommendationEvent, ARGS};
-use dspa_recommendations::operators::{Window, Recommendations};
 
 const HR_4: u64 = 60 * 60 * 4;
 const HR_1: u64 = 60 * 60;
@@ -23,20 +23,17 @@ fn main() {
     let pool = Arc::new(
         Pool::builder()
             .max_size(16)
-            .build(ConnectionManager::<PgConnection>::new(
-                DATABASE_URL,
-            ))
+            .build(ConnectionManager::<PgConnection>::new(DATABASE_URL))
             .unwrap(),
     );
-    
+
     let ctx = Context::new();
     timely::execute(timely::Configuration::Thread, move |worker| {
-    // timely::execute(timely::Configuration::Process(num_cpus::get()), move |worker| {
+        // timely::execute(timely::Configuration::Process(num_cpus::get()), move |worker| {
         let idx = worker.index();
         let peers = worker.peers();
 
         worker.dataflow(|scope| {
-
             let (posts, comments, likes) = streams(scope, idx, &ctx);
 
             let comment_events = comments
@@ -59,13 +56,17 @@ fn main() {
                 .recommendations(&pool, &ARGS.users)
                 .inspect_batch(|timestamp, recommendations| {
                     if !recommendations.is_empty() {
-                        println!("{} - {}", Utc.timestamp(*timestamp as i64, 0).format("%D - %r"), timestamp);
+                        println!(
+                            "{} - {}",
+                            Utc.timestamp(*timestamp as i64, 0).format("%D - %r"),
+                            timestamp
+                        );
                         for (user, recommended) in recommendations {
                             println!("\tUser {} - Recomendations: {:?}", user, recommended);
                         }
                     }
                 });
-
         });
-    }).unwrap();
+    })
+    .unwrap();
 }

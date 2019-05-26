@@ -5,8 +5,8 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::env::args;
 use std::fmt;
 use std::mem::swap;
-use std::sync::Arc;
 use std::sync::atomic::AtomicU64;
+use std::sync::Arc;
 
 use chrono::{DateTime, TimeZone, Utc};
 use diesel::prelude::*;
@@ -22,28 +22,26 @@ use timely::dataflow::operators::{
 use timely::dataflow::{ProbeHandle, Scope, Stream};
 use zmq::Context;
 
-use dspa_lib::operators::{Ordered, streams};
+use dspa_lib::operators::{streams, Ordered};
 use dspa_lib::records::{CommentRecord, LikeRecord, PostRecord, StreamRecord};
 use dspa_lib::schema::{comment, like_ as like, post};
-use dspa_lib::{Topic, MAX_DELAY, DATABASE_URL};
+use dspa_lib::{Topic, DATABASE_URL, MAX_DELAY};
 
+use dspa_post_stats::operators::PostStats;
 use dspa_post_stats::{ActivePost, ActivePostEvent};
-use dspa_post_stats::operators::{PostStats};
 
 fn main() {
     let pool = Arc::new(
         Pool::builder()
             .max_size(16)
-            .build(ConnectionManager::<PgConnection>::new(
-                DATABASE_URL,
-            ))
+            .build(ConnectionManager::<PgConnection>::new(DATABASE_URL))
             .unwrap(),
     );
 
     let ctx = Context::new();
 
     timely::execute(timely::Configuration::Thread, move |worker| {
-    // timely::execute(timely::Configuration::Process(num_cpus::get()), move |worker| {
+        // timely::execute(timely::Configuration::Process(num_cpus::get()), move |worker| {
         let idx = worker.index();
         let peers = worker.peers();
 
@@ -59,7 +57,7 @@ fn main() {
                     .ordered(idx, peers, pool.clone(), &posts)
                     .map(move |comment| {
                         let connection = pool.get().unwrap();
-    
+
                         ActivePostEvent::Comment {
                             post_id: comment.root(&connection).unwrap().id,
                             person_id: comment.person_id,
@@ -68,12 +66,12 @@ fn main() {
             };
 
             let like_events = likes
-                    .exchange(|like| like.post_id as u64)
-                    .ordered(idx, peers, pool.clone(), &posts)
-                    .map(|like| ActivePostEvent::Like {
-                        post_id: like.post_id,
-                        person_id: like.person_id,
-                    });
+                .exchange(|like| like.post_id as u64)
+                .ordered(idx, peers, pool.clone(), &posts)
+                .map(|like| ActivePostEvent::Like {
+                    post_id: like.post_id,
+                    person_id: like.person_id,
+                });
 
             comment_events
                 .concat(&like_events)
@@ -81,15 +79,17 @@ fn main() {
                 .post_stats(pool.clone())
                 .inspect_batch(|timestamp, posts| {
                     if !posts.is_empty() {
-                        println!("{} - {}", Utc.timestamp(*timestamp as i64, 0).format("%D - %r"), timestamp);
+                        println!(
+                            "{} - {}",
+                            Utc.timestamp(*timestamp as i64, 0).format("%D - %r"),
+                            timestamp
+                        );
                         for post in posts {
                             println!("\t{}", post);
                         }
                     }
                 });
         });
-
     })
     .unwrap();
 }
-

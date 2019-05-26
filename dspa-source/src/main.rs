@@ -1,20 +1,20 @@
-use std::sync::Arc;
 use std::sync::atomic::AtomicU64;
+use std::sync::Arc;
 use std::time::Instant;
 
 use diesel::prelude::*;
 use diesel::r2d2::ConnectionManager;
 use r2d2::Pool;
+use rand::{thread_rng, RngCore};
 use timely;
 use timely::dataflow::operators::{Exchange, Inspect};
 use zmq::Context;
-use rand::{thread_rng, RngCore};
 
 use dspa_lib::records::*;
 use dspa_lib::schema::*;
-use dspa_lib::{DATABASE_URL};
+use dspa_lib::DATABASE_URL;
 
-use dspa_source::operators::{csv_source, csv_stream_source, Insert, BoundedDelay, Publish};
+use dspa_source::operators::{csv_source, csv_stream_source, BoundedDelay, Insert, Publish};
 use dspa_source::ARGS;
 
 fn main() {
@@ -93,30 +93,33 @@ fn main() {
             let path = ARGS.path.join("tables/");
 
             eprintln!("Inserting data records!");
-            timely::execute(timely::Configuration::Process(num_cpus::get()), move |worker| {
-                let idx = worker.index();
+            timely::execute(
+                timely::Configuration::Process(num_cpus::get()),
+                move |worker| {
+                    let idx = worker.index();
 
-                worker.dataflow(|scope| {
-                    csv_source::<_, ForumRecord>(scope, idx, &path)
-                        .exchange(|_| thread_rng().next_u64())
-                        .insert(pool.clone());
-                    csv_source::<_, OrganizationRecord>(scope, idx, &path)
-                        .exchange(|_| thread_rng().next_u64())
-                        .insert(pool.clone());
-                    csv_source::<_, PersonRecord>(scope, idx, &path)
-                        .exchange(|_| thread_rng().next_u64())
-                        .insert(pool.clone());
-                    csv_source::<_, PlaceRecord>(scope, idx, &path)
-                        .exchange(|_| thread_rng().next_u64())
-                        .insert(pool.clone());
-                    csv_source::<_, TagRecord>(scope, idx, &path)
-                        .exchange(|_| thread_rng().next_u64())
-                        .insert(pool.clone());
-                    csv_source::<_, TagClassRecord>(scope, idx, &path)
-                        .exchange(|_| thread_rng().next_u64())
-                        .insert(pool.clone());
-                });
-            })
+                    worker.dataflow(|scope| {
+                        csv_source::<_, ForumRecord>(scope, idx, &path)
+                            .exchange(|_| thread_rng().next_u64())
+                            .insert(pool.clone());
+                        csv_source::<_, OrganizationRecord>(scope, idx, &path)
+                            .exchange(|_| thread_rng().next_u64())
+                            .insert(pool.clone());
+                        csv_source::<_, PersonRecord>(scope, idx, &path)
+                            .exchange(|_| thread_rng().next_u64())
+                            .insert(pool.clone());
+                        csv_source::<_, PlaceRecord>(scope, idx, &path)
+                            .exchange(|_| thread_rng().next_u64())
+                            .insert(pool.clone());
+                        csv_source::<_, TagRecord>(scope, idx, &path)
+                            .exchange(|_| thread_rng().next_u64())
+                            .insert(pool.clone());
+                        csv_source::<_, TagClassRecord>(scope, idx, &path)
+                            .exchange(|_| thread_rng().next_u64())
+                            .insert(pool.clone());
+                    });
+                },
+            )
             .unwrap();
             eprintln!("Done inserting data records!");
         }
@@ -126,54 +129,57 @@ fn main() {
             let path = ARGS.path.join("tables/");
 
             eprintln!("Inserting relation records!");
-            timely::execute(timely::Configuration::Process(num_cpus::get()), move |worker| {
-                let idx = worker.index();
+            timely::execute(
+                timely::Configuration::Process(num_cpus::get()),
+                move |worker| {
+                    let idx = worker.index();
 
-                worker.dataflow(|scope| {
-                    csv_source::<_, ForumHasMemberRecord>(scope, idx, &path)
-                        .exchange(|_| thread_rng().next_u64())
-                        .insert(pool.clone());
-                    csv_source::<_, ForumHasModeratorRecord>(scope, idx, &path)
-                        .exchange(|_| thread_rng().next_u64())
-                        .insert(pool.clone());
-                    csv_source::<_, ForumHasTagRecord>(scope, idx, &path)
-                        .exchange(|_| thread_rng().next_u64())
-                        .insert(pool.clone());
-                    csv_source::<_, OrganizationIsLocatedInRecord>(scope, idx, &path)
-                        .exchange(|_| thread_rng().next_u64())
-                        .insert(pool.clone());
-                    csv_source::<_, PersonEmailRecord>(scope, idx, &path)
-                        .exchange(|_| thread_rng().next_u64())
-                        .insert(pool.clone());
-                    csv_source::<_, PersonHasInterestRecord>(scope, idx, &path)
-                        .exchange(|_| thread_rng().next_u64())
-                        .insert(pool.clone());
-                    csv_source::<_, PersonIsLocatedInRecord>(scope, idx, &path)
-                        .exchange(|_| thread_rng().next_u64())
-                        .insert(pool.clone());
-                    csv_source::<_, PersonKnowsRecord>(scope, idx, &path)
-                        .exchange(|_| thread_rng().next_u64())
-                        .insert(pool.clone());
-                    csv_source::<_, PersonSpeaksRecord>(scope, idx, &path)
-                        .exchange(|_| thread_rng().next_u64())
-                        .insert(pool.clone());
-                    csv_source::<_, PersonStudyAtRecord>(scope, idx, &path)
-                        .exchange(|_| thread_rng().next_u64())
-                        .insert(pool.clone());
-                    csv_source::<_, PersonWorkAtRecord>(scope, idx, &path)
-                        .exchange(|_| thread_rng().next_u64())
-                        .insert(pool.clone());
-                    csv_source::<_, TagHasTypeRecord>(scope, idx, &path)
-                        .exchange(|_| thread_rng().next_u64())
-                        .insert(pool.clone());
-                    csv_source::<_, TagClassIsSubclassOfRecord>(scope, idx, &path)
-                        .exchange(|_| thread_rng().next_u64())
-                        .insert(pool.clone());
-                    csv_source::<_, PlaceIsPartOfRecord>(scope, idx, &path)
-                        .exchange(|_| thread_rng().next_u64())
-                        .insert(pool.clone());
-                });
-            })
+                    worker.dataflow(|scope| {
+                        csv_source::<_, ForumHasMemberRecord>(scope, idx, &path)
+                            .exchange(|_| thread_rng().next_u64())
+                            .insert(pool.clone());
+                        csv_source::<_, ForumHasModeratorRecord>(scope, idx, &path)
+                            .exchange(|_| thread_rng().next_u64())
+                            .insert(pool.clone());
+                        csv_source::<_, ForumHasTagRecord>(scope, idx, &path)
+                            .exchange(|_| thread_rng().next_u64())
+                            .insert(pool.clone());
+                        csv_source::<_, OrganizationIsLocatedInRecord>(scope, idx, &path)
+                            .exchange(|_| thread_rng().next_u64())
+                            .insert(pool.clone());
+                        csv_source::<_, PersonEmailRecord>(scope, idx, &path)
+                            .exchange(|_| thread_rng().next_u64())
+                            .insert(pool.clone());
+                        csv_source::<_, PersonHasInterestRecord>(scope, idx, &path)
+                            .exchange(|_| thread_rng().next_u64())
+                            .insert(pool.clone());
+                        csv_source::<_, PersonIsLocatedInRecord>(scope, idx, &path)
+                            .exchange(|_| thread_rng().next_u64())
+                            .insert(pool.clone());
+                        csv_source::<_, PersonKnowsRecord>(scope, idx, &path)
+                            .exchange(|_| thread_rng().next_u64())
+                            .insert(pool.clone());
+                        csv_source::<_, PersonSpeaksRecord>(scope, idx, &path)
+                            .exchange(|_| thread_rng().next_u64())
+                            .insert(pool.clone());
+                        csv_source::<_, PersonStudyAtRecord>(scope, idx, &path)
+                            .exchange(|_| thread_rng().next_u64())
+                            .insert(pool.clone());
+                        csv_source::<_, PersonWorkAtRecord>(scope, idx, &path)
+                            .exchange(|_| thread_rng().next_u64())
+                            .insert(pool.clone());
+                        csv_source::<_, TagHasTypeRecord>(scope, idx, &path)
+                            .exchange(|_| thread_rng().next_u64())
+                            .insert(pool.clone());
+                        csv_source::<_, TagClassIsSubclassOfRecord>(scope, idx, &path)
+                            .exchange(|_| thread_rng().next_u64())
+                            .insert(pool.clone());
+                        csv_source::<_, PlaceIsPartOfRecord>(scope, idx, &path)
+                            .exchange(|_| thread_rng().next_u64())
+                            .insert(pool.clone());
+                    });
+                },
+            )
             .unwrap();
             eprintln!("Done inserting relation records!")
         }
@@ -187,20 +193,14 @@ fn main() {
             let connection = pool.get().unwrap();
 
             // Drop relations
-            diesel::delete(post::table)
-                .execute(&connection)
-                .unwrap();
-            diesel::delete(comment::table)
-                .execute(&connection)
-                .unwrap();
-            diesel::delete(like_::table)
-                .execute(&connection)
-                .unwrap();
+            diesel::delete(post::table).execute(&connection).unwrap();
+            diesel::delete(comment::table).execute(&connection).unwrap();
+            diesel::delete(like_::table).execute(&connection).unwrap();
         }
 
         eprintln!("Inserting stream records!");
         timely::execute(timely::Configuration::Thread, move |worker| {
-        // timely::execute(timely::Configuration::Process(num_cpus::get()), move |worker| {
+            // timely::execute(timely::Configuration::Process(num_cpus::get()), move |worker| {
             let idx = worker.index();
             let ctx = Context::new();
 

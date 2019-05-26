@@ -1,14 +1,14 @@
 use std::path::PathBuf;
-use std::time::{Instant, Duration};
+use std::time::{Duration, Instant};
 
 use csv::ReaderBuilder;
-use timely::dataflow::operators::generic::operator::{source, empty};
-use timely::dataflow::{Scope, Stream};
-use timely::dataflow::operators::{Partition, Map};
 use itertools::Itertools;
+use timely::dataflow::operators::generic::operator::{empty, source};
+use timely::dataflow::operators::{Map, Partition};
+use timely::dataflow::{Scope, Stream};
 
+use dspa_lib::records::{CommentRecord, LikeRecord, PostRecord, Record, StreamRecord};
 use dspa_lib::StreamEvent;
-use dspa_lib::records::{Record, StreamRecord, PostRecord, CommentRecord, LikeRecord};
 
 use crate::ARGS;
 
@@ -55,7 +55,10 @@ where
     }
 }
 
-fn records<D>(path: &PathBuf) -> impl Iterator<Item = D> where D: StreamRecord {
+fn records<D>(path: &PathBuf) -> impl Iterator<Item = D>
+where
+    D: StreamRecord,
+{
     ReaderBuilder::new()
         .delimiter(b'|')
         .has_headers(true)
@@ -65,7 +68,15 @@ fn records<D>(path: &PathBuf) -> impl Iterator<Item = D> where D: StreamRecord {
         .map(Result::unwrap)
 }
 
-pub fn csv_stream_source<G>(scope: &G, idx: usize, path: &PathBuf) -> (Stream<G, PostRecord>, Stream<G, CommentRecord>, Stream<G, LikeRecord>)
+pub fn csv_stream_source<G>(
+    scope: &G,
+    idx: usize,
+    path: &PathBuf,
+) -> (
+    Stream<G, PostRecord>,
+    Stream<G, CommentRecord>,
+    Stream<G, LikeRecord>,
+)
 where
     G: Scope<Timestamp = u64>,
 {
@@ -76,12 +87,21 @@ where
             let activator = scope.activator_for(&info.address[..]);
             let mut cap = Some(capability);
 
-            let posts = records::<PostRecord>(&path.join(PostRecord::FILENAME)).map(StreamEvent::Post).peekable();
-            let comments = records::<CommentRecord>(&path.join(CommentRecord::FILENAME)).map(StreamEvent::Comment).peekable();
-            let likes = records::<LikeRecord>(&path.join(LikeRecord::FILENAME)).map(StreamEvent::Like).peekable();
+            let posts = records::<PostRecord>(&path.join(PostRecord::FILENAME))
+                .map(StreamEvent::Post)
+                .peekable();
+            let comments = records::<CommentRecord>(&path.join(CommentRecord::FILENAME))
+                .map(StreamEvent::Comment)
+                .peekable();
+            let likes = records::<LikeRecord>(&path.join(LikeRecord::FILENAME))
+                .map(StreamEvent::Like)
+                .peekable();
 
             // Merge records according to timestamp
-            let mut events = posts.merge_by(comments, |a, b| a.timestamp() < b.timestamp()).merge_by(likes, |a, b| a.timestamp() < b.timestamp()).peekable();
+            let mut events = posts
+                .merge_by(comments, |a, b| a.timestamp() < b.timestamp())
+                .merge_by(likes, |a, b| a.timestamp() < b.timestamp())
+                .peekable();
 
             let timestamp_logical = events.peek().unwrap().timestamp() as u64;
             let timestamp_physical = Instant::now();
@@ -109,11 +129,11 @@ where
                             // Logical event timestamp still in future, update frontier
                             cap.downgrade(&(timestamp_logical + physical_duration.as_secs()));
                         }
-                        // println!("CAP: {:?}", *cap.time());
+                    // println!("CAP: {:?}", *cap.time());
                     } else {
                         // No more events
                         done = true;
-                    }                    
+                    }
                 }
 
                 if done {
@@ -131,9 +151,27 @@ where
         });
 
         (
-            streams[0].map(|event| if let StreamEvent::Post(record) = event { record } else { unreachable!() }),
-            streams[1].map(|event| if let StreamEvent::Comment(record) = event { record } else { unreachable!() }),
-            streams[2].map(|event| if let StreamEvent::Like(record) = event { record } else { unreachable!() }),
+            streams[0].map(|event| {
+                if let StreamEvent::Post(record) = event {
+                    record
+                } else {
+                    unreachable!()
+                }
+            }),
+            streams[1].map(|event| {
+                if let StreamEvent::Comment(record) = event {
+                    record
+                } else {
+                    unreachable!()
+                }
+            }),
+            streams[2].map(|event| {
+                if let StreamEvent::Like(record) = event {
+                    record
+                } else {
+                    unreachable!()
+                }
+            }),
         )
     } else {
         (empty(scope), empty(scope), empty(scope))

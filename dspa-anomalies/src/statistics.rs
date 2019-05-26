@@ -46,7 +46,7 @@ use std::collections::VecDeque;
 //     }
 
 //     #[inline]
-//     pub fn stddev(&self) -> f32 { 
+//     pub fn stddev(&self) -> f32 {
 //         self.variance().sqrt()
 //     }
 
@@ -112,4 +112,3 @@ impl OnlineStatistic {
         }
     }
 }
-
