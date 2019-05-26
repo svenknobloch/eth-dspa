@@ -3,7 +3,7 @@ use std::iter::Iterator;
 
 use regex::Regex;
 use timely::dataflow::channels::pact::Pipeline;
-use timely::dataflow::operators::{Map, Operator};
+use timely::dataflow::operators::Operator;
 use timely::dataflow::{Scope, Stream};
 
 use crate::statistics::OnlineStatistic;
